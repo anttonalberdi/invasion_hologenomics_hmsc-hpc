@@ -1,0 +1,119 @@
+# GPU-based HMSC modelling with updated dataset
+
+```{r load_libraries, comment="", message=FALSE, warning=FALSE, eval=FALSE}
+library(tidyverse)
+library(Hmsc)
+library(ape)
+```
+
+```{r load_data, comment="", message=FALSE, warning=FALSE, eval=FALSE}
+load("resources/hmsc.Rdata")
+
+m <- model_list$model.red
+save(m, file = "hmsc/model_red")
+
+m <- model_list$model.grey
+save(m, file = "hmsc/model_grey")
+```
+
+## In the HPC
+
+### Red squirrels in parallel
+
+```{sh}
+conda activate hmsc-hpc
+
+model="hmsc/model_red"
+init="init/model_red.rds"
+
+export samples=250
+export thin=100
+export transient=$(( samples * thin ))
+export nChains=4
+export verbose=TRUE
+export model
+export init
+
+# Get initiation object
+Rscript hmsc.r $model $init
+```
+
+```{sh}
+cat <<'EOF' > launch_model_red.sh
+#!/bin/bash
+#SBATCH --job-name=hmsc_model_red
+#SBATCH --array=0-3
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=1
+#SBATCH --partition=gpuqueue
+#SBATCH --qos=normal
+#SBATCH --gres=gpu:1
+#SBATCH --mem=32gb
+#SBATCH --time=120:00:00
+
+# Activate conda environment
+source activate hmsc-hpc
+
+# Set output files
+output=$(printf "output/hmsc_model_red_chain_%.2d.rds" $SLURM_ARRAY_TASK_ID)
+mkdir output
+
+# Run model fit
+srun python3 -m hmsc.run_gibbs_sampler --input $init --output $output --samples $samples --transient $transient --thin $thin --verbose 100 --chains $SLURM_ARRAY_TASK_ID
+EOF
+```
+
+```{sh}
+sbatch launch_model_red.sh
+```
+
+### Grey squirrels in parallel
+
+```{sh}
+conda activate hmsc-hpc
+
+model="hmsc/model_grey"
+init="init/model_grey.rds"
+
+export samples=250
+export thin=100
+export transient=$(( samples * thin ))
+export nChains=4
+export verbose=TRUE
+export model
+export init
+
+# Get initiation object
+Rscript hmsc.r $model $init
+```
+
+```{sh}
+cat <<'EOF' > launch_model_grey.sh
+#!/bin/bash
+#SBATCH --job-name=hmsc_model_grey
+#SBATCH --array=0-3
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=1
+#SBATCH --partition=gpuqueue
+#SBATCH --qos=normal
+#SBATCH --gres=gpu:1
+#SBATCH --mem=32gb
+#SBATCH --time=120:00:00
+
+# Activate conda environment
+source activate hmsc-hpc
+
+# Set output files
+output=$(printf "output/hmsc_model_grey_chain_%.2d.rds" $SLURM_ARRAY_TASK_ID)
+mkdir output
+
+# Run model fit
+srun python3 -m hmsc.run_gibbs_sampler --input $init --output $output --samples $samples --transient $transient --thin $thin --verbose 100 --chains $SLURM_ARRAY_TASK_ID
+EOF
+```
+
+```{sh}
+sbatch launch_model_grey.sh
+```
