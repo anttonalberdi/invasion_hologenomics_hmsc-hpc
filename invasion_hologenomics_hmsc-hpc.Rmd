@@ -117,3 +117,45 @@ EOF
 ```{sh}
 sbatch launch_model_grey.sh
 ```
+
+## Locally
+
+```{r parameters_hmsc}
+#Parameters
+nSamples=250
+thin=100
+transient=nSamples * thin
+nChains=4
+support_threshold=0.9
+negsupport_threshold=1-support_threshold
+```
+
+### Red squirrels in parallel
+
+```{r load_model_red, warning=FALSE, comments="", message=FALSE, cache=TRUE}
+#Load unfitted
+load(file = "hmsc/model_red")
+
+#Load fitted (as a temporary file)
+chainList = vector("list", nChains)
+for(cInd in 1:nChains){
+	chain_file_path = file.path(sprintf("output/hmsc_model_red_chain_%.2d.rds", cInd-1))
+	chainList[[cInd]] = readRDS(file = chain_file_path)[["list"]][[1]]
+}
+
+fitted_red = importPosteriorFromHPC(m, chainList, nSamples, thin, transient)
+```
+
+```{r load_model_grey, warning=FALSE, comments="", message=FALSE, cache=TRUE}
+#Load unfitted
+load(file = "hmsc/model_grey")
+
+#Load fitted (as a temporary file)
+chainList = vector("list", nChains)
+for(cInd in 1:nChains){
+	chain_file_path = file.path(sprintf("output/hmsc_model_grey_chain_%.2d.rds", cInd-1))
+	chainList[[cInd]] = readRDS(file = chain_file_path)[["list"]][[1]]
+}
+
+fitted_grey = importPosteriorFromHPC(m, chainList, nSamples, thin, transient)
+```
